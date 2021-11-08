@@ -14,14 +14,18 @@ const int MOTOR1_FW = 12,
           ECHO_PIN2 = 3,
           TRIG_PIN3 = 4,
           ECHO_PIN3 = 5,
+          IR1_PIN = 6,
+          IR2_PIN = 7,
           MOTOR2_FW = 14,
           MOTOR2_BW = 15,
           LED_STATUS = 25;
 
+
 int main() {
     stdio_init_all();
+
     while(1) {
-        printf("test\n");
+
     }
     return 0;
 }
