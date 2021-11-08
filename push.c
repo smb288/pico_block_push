@@ -53,6 +53,23 @@ void ultrasonicSensorPinInit(uint trigPin1, uint echoPin1, uint trigPin2, uint e
     gpio_set_dir(echoPin3, GPIO_IN);
 }
 
+int ultrasonicSensorTrig(uint trigPin, uint echoPin){
+    gpio_put(trigPin, 1);
+    sleep_us(10);
+    gpio_put(trigPin, 0);
+
+    while (gpio_get(echoPin) == 0) tight_loop_contents();
+    absolute_time_t startTime = get_absolute_time();
+    while (gpio_get(echoPin) == 1) {
+            sleep_us(1);
+    }
+    absolute_time_t endTime = get_absolute_time();
+    uint64_t timeDiff = absolute_time_diff_us(startTime, endTime);
+    int cmLength = timeDiff / 29 / 2;
+
+    return cmLength;
+}
+
 void startUp(uint ledPin) {
     gpio_init(ledPin);
     gpio_set_dir(ledPin, GPIO_OUT);
@@ -108,11 +125,7 @@ void turn_left() {
 void secondCoreCode() {
     while(1) {
         if(!START_CYCLE) {
-            if(TOO_CLOSE1) turn_right();
-            if(TOO_CLOSE2) turn_right();
-            if(TOO_CLOSE3) turn_left();
-            else forwards();
-            sleep_us(10);
+            
         }
     }
 }
@@ -120,17 +133,34 @@ void secondCoreCode() {
 int main() {
     stdio_init_all();
 
+    //Initialize pins for motors and sensors
     motorPinInit(MOTOR1_FW,MOTOR1_BW,MOTOR2_FW,MOTOR2_BW);
     ultrasonicSensorPinInit(TRIG_PIN1, ECHO_PIN1, TRIG_PIN2, ECHO_PIN2, TRIG_PIN3, ECHO_PIN3);
 
+    //Launch second core and set clock rate to 250MHz
     set_sys_clock_khz(250000, true);
     multicore_launch_core1(secondCoreCode);
-
+    
+    //Startup delay phase
     startUp(LED_STATUS);
 
-    while(1) {
-        START_CYCLE = false;
+    //Values to determine if an object is in range of sensor
+    int lrThresh = 20;
+    int centerThresh = 40;
 
+    while(1) {
+        //Read distance from each ultrasonic sensor
+        int leftDistance = ultrasonicSensorTrig(TRIG_PIN1, ECHO_PIN1);
+        int centerDistance = ultrasonicSensorTrig(TRIG_PIN2, ECHO_PIN2);
+        int rightDistance = ultrasonicSensorTrig(TRIG_PIN3, ECHO_PIN3);
+
+        
+        if(leftDistance < lrThresh) turn_right();
+        else if(rightDistance < lrThresh) turn_left();
+        else if(centerDistance < centerThresh) turn_right();
+        else forwards();
+
+        START_CYCLE = false;
     }
     return 0;
 }
